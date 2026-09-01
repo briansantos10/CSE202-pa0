@@ -9,30 +9,45 @@ union value{
     float fval;
     unsigned char bytes[4];
 };
+
+// TODO: 
 // reads 8 hex characters from string input and stores it in the union v
 // returns -1 if the hexadecimal number is invalid, 0 otherwise
 int read_hex(union value *v, char *input);
 
+// TODO: 
 // converts the ASCII hex character c to binary
 // returns the hex value of c if c is a valid hex digit, -1 otherwise
 char hexDigit(char c);
 
 // returns true if x has any even bit equal to 1, 0 otherwise
 int any_even_one(unsigned x);
+
+// TODO: 
 // returns a mask indicating the position of the left most one in x
 int leftmost_one(unsigned x);
+
+// TODO: 
 // returns x shifted n positions to the left with the n most significant bits of x 
 // inserted at the right of x
 unsigned rotate_left(unsigned x, int n);
+
+// TODO: 
 // returns x shifted n positions to the right with the n least significant bits of x 
 // inserted at the left of x
 unsigned rotate_right(unsigned x, int n);
+
+// TODO: 
 // returns x+y if no overflow occurs
 // returns TMAX if a positive overflow occurs
 // returns TMIN if a negative overflow occurs
 int saturating_add(int x, int y);
+
+// TODO: 
 // multiplies the binary representation of a float number f by 2
 unsigned float_twice(unsigned f);
+
+// TODO: 
 // divides the binary representation of a float number f by 2
 unsigned float_half(unsigned f);
 
@@ -42,4 +57,26 @@ int main(int argc, char** argv){
         exit(0);
     }
     return 0;
+}
+//  Solutions
+
+int any_even_one(unsigned x){
+    return (x & 0x55555555) != 0;
+}
+
+int leftmost_one(unsigned x) {
+    int count = 0;
+    while (x != 0) {
+        x = x >> 1;
+        count++;    
+    }
+    if (count == 0) {
+        return 0; // No bits are set
+    }
+    return 1 << (count - 1); 
+}
+
+unsigned rotate_right(unsigned x, int n) {
+    unsigned int y = x & ( ~ (0xFFFFFFFF << n) );
+    return (x << n) | (y >> (32 - n));
 }
