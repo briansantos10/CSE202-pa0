@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <limits.h>
+#include <math.h>
 // Union to store 4 bytes as an array of bytes, an unsigned, signed, or float number
 union value{
     unsigned uval;
@@ -10,44 +11,36 @@ union value{
     unsigned char bytes[4];
 };
 
-// TODO: 
 // reads 8 hex characters from string input and stores it in the union v
 // returns -1 if the hexadecimal number is invalid, 0 otherwise
 int read_hex(union value *v, char *input);
 
-// TODO: 
 // converts the ASCII hex character c to binary
 // returns the hex value of c if c is a valid hex digit, -1 otherwise
 char hexDigit(char c);
 
 // returns true if x has any even bit equal to 1, 0 otherwise
 int any_even_one(unsigned x);
-
-// TODO: 
+ 
 // returns a mask indicating the position of the left most one in x
 int leftmost_one(unsigned x);
 
-// TODO: 
 // returns x shifted n positions to the left with the n most significant bits of x 
 // inserted at the right of x
 unsigned rotate_left(unsigned x, int n);
 
-// TODO: 
 // returns x shifted n positions to the right with the n least significant bits of x 
 // inserted at the left of x
 unsigned rotate_right(unsigned x, int n);
 
-// TODO: 
 // returns x+y if no overflow occurs
 // returns TMAX if a positive overflow occurs
 // returns TMIN if a negative overflow occurs
 int saturating_add(int x, int y);
 
-// TODO: 
 // multiplies the binary representation of a float number f by 2
 unsigned float_twice(unsigned f);
-
-// TODO: 
+ 
 // divides the binary representation of a float number f by 2
 unsigned float_half(unsigned f);
 
@@ -79,4 +72,66 @@ int leftmost_one(unsigned x) {
 unsigned rotate_right(unsigned x, int n) {
     unsigned int y = x & ( ~ (0xFFFFFFFF << n) );
     return (x << n) | (y >> (32 - n));
+}
+
+unsigned rotate_left(unsigned x, int n) {
+    unsigned int y = x >> (32 - n);
+    return (x << n) | y;
+}
+
+unsigned saturating_add(int x, int y) {
+    int sum = x + y;
+    if (x > 0 && y > 0 && sum < 0) {
+        return INT_MAX; 
+    } else if (x < 0 && y < 0 && sum > 0) {
+        return INT_MIN;
+    }
+
+    return (unsigned) sum;
+}
+
+unsigned float_twice(unsigned f) {
+    unsigned exp = (f >> 23) & 0xFF;
+    if (exp == 0xff) {
+        return f;
+    }
+
+    return f + (1 << 23);
+}   
+
+unsigned float_half(unsigned f) {
+    unsigned exp = (f >> 23) & 0xFF;
+    if (exp == 0xff) {
+        return f;
+    }
+
+    return f - (1 << 23);
+}
+
+char hexDigit(char c) {
+    if (c >= '0' && c <= '9') {
+        return c - '0';
+    } else if (c >= 'A' && c <= 'F') {
+        return c - 'A' + 10;
+    } else if (c >= 'a' && c <= 'f') {
+        return c - 'a' + 10;
+    } else {
+        return -1;
+    }
+}
+
+int read_hex(union value *v, char *input) {
+    if (strlen(input) != 8) {
+        return -1;
+    }
+
+    for (int i = 0; i < 8; i++) {
+        char digit = hexDigit(input[i]);
+        if (digit == -1) {
+            return -1;
+        }
+        v->bytes[i / 2] |= (digit << ((1 - (i % 2)) * 4));
+    }
+
+    return 0;
 }
