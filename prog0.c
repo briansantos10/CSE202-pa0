@@ -36,7 +36,7 @@ unsigned rotate_right(unsigned x, int n);
 // returns x+y if no overflow occurs
 // returns TMAX if a positive overflow occurs
 // returns TMIN if a negative overflow occurs
-int saturating_add(int x, int y);
+unsigned saturating_add(int x, int y);
 
 // multiplies the binary representation of a float number f by 2
 unsigned float_twice(unsigned f);
@@ -46,12 +46,12 @@ unsigned float_half(unsigned f);
 
 int main(int argc, char** argv){
     if(argc != 3 && argc != 4){
-        printf("Invalid number of arguments");
+        printf("Invalid number of arguments\n");
         exit(0);
     }
 
-    union value value;
-    union value value2;
+    union value value = {0};
+    union value value2 = {0};
 
     if (strcmp(argv[1], "even") == 0){
             int valid = read_hex(&value, argv[2]);
@@ -85,11 +85,11 @@ int main(int argc, char** argv){
         }
         else{
             int shift = atoi(argv[3]);
-            unsigned result = rotate_left(value.uval, shift);
-            if (shift>32){
+            if (shift < 0 || shift >= 32){
                 printf("Invalid number of shift positions\n");
             }
             else{
+                unsigned result = rotate_left(value.uval, shift);
                 printf("%08x\n", result);
             }
         }
@@ -101,7 +101,7 @@ int main(int argc, char** argv){
         }
         else{
             int shift = atoi(argv[3]);
-            if (shift>=32){
+            if (shift < 0 || shift >= 32){
                 printf("Invalid number of shift positions\n");
             }
             else{
@@ -117,8 +117,8 @@ int main(int argc, char** argv){
             printf("Invalid hex value\n");
         }
         else{
-            int sum = saturating_add(value.sval, value2.sval);
-            printf("%08x %i\n",sum, sum);
+            unsigned sum = saturating_add(value.sval, value2.sval);
+            printf("%08x %d\n", sum, (int)sum);
         }
     }
     else if (strcmp(argv[1], "twice")==0){
@@ -149,61 +149,80 @@ int main(int argc, char** argv){
 
     return 0;
 }
-//  Solutions
 
 int any_even_one(unsigned x){
-    return (x & 0x55555555) != 0;
+    return (x & 0x55555555u) != 0;
 }
 
 int leftmost_one(unsigned x) {
-    int count = 0;
-    while (x != 0) {
-        x = x >> 1;
-        count++;    
+    unsigned mask = 0x80000000u;
+    while ((x & mask) == 0u && mask != 0u) {
+        mask >>= 1;
     }
-    if (count == 0) {
-        return 0; // No bits are set
-    }
-    return 1 << (count - 1); 
-}
-
-unsigned rotate_right(unsigned x, int n) {
-    unsigned int y = x & ( ~ (0xFFFFFFFF << n) );
-    return (x << n) | (y >> (32 - n));
+    return (int)mask;
 }
 
 unsigned rotate_left(unsigned x, int n) {
-    unsigned int y = x >> (32 - n);
-    return (x << n) | y;
+    if (n < 0) {
+        n = 32 + (n % 32);
+    }
+    n %= 32;
+    if (n == 0) {
+        return x;
+    }
+    return (x << n) | (x >> (32 - n));
+}
+
+unsigned rotate_right(unsigned x, int n) {
+    if (n < 0) {
+        n = 32 + (n % 32);
+    }
+    n %= 32;
+    if (n == 0) {
+        return x;
+    }
+    return (x >> n) | (x << (32 - n));
 }
 
 unsigned saturating_add(int x, int y) {
-    int sum = x + y;
-    if (x > 0 && y > 0 && sum < 0) {
-        return INT_MAX; 
-    } else if (x < 0 && y < 0 && sum > 0) {
-        return INT_MIN;
+    long long sum = (long long)x + y;
+    if (sum > INT_MAX) {
+        return (unsigned)INT_MAX;
     }
-
-    return (unsigned) sum;
+    if (sum < INT_MIN) {
+        return (unsigned)INT_MIN;
+    }
+    return (unsigned)(int)sum;
 }
 
 unsigned float_twice(unsigned f) {
-    unsigned exp = (f >> 23) & 0xFF;
-    if (exp == 0xff) {
+    union {
+        unsigned u;
+        float f;
+    } v;
+    v.u = f;
+
+    if (isnan(v.f) || isinf(v.f)) {
         return f;
     }
 
-    return f + (1 << 23);
-}   
+    v.f = v.f * 2.0f;
+    return v.u;
+}
 
 unsigned float_half(unsigned f) {
-    unsigned exp = (f >> 23) & 0xFF;
-    if (exp == 0xff) {
+    union {
+        unsigned u;
+        float f;
+    } v;
+    v.u = f;
+
+    if (isnan(v.f) || isinf(v.f)) {
         return f;
     }
 
-    return f - (1 << 23);
+    v.f = v.f * 0.5f;
+    return v.u;
 }
 
 char hexDigit(char c) {
@@ -223,12 +242,15 @@ int read_hex(union value *v, char *input) {
         return -1;
     }
 
-    for (int i = 0; i < 8; i++) {
-        char digit = hexDigit(input[i]);
-        if (digit == -1) {
+    memset(v, 0, sizeof(*v));
+
+    for (int i = 0; i < 4; i++) {
+        char high = hexDigit(input[2 * i]);
+        char low = hexDigit(input[2 * i + 1]);
+        if (high == -1 || low == -1) {
             return -1;
         }
-        v->bytes[i / 2] |= (digit << ((1 - (i % 2)) * 4));
+        v->bytes[3 - i] = (unsigned char)((high << 4) | low);
     }
 
     return 0;
